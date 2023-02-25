@@ -34,6 +34,7 @@ enum Commands {
         #[arg(short, long, default_value_t = false)]
         reversed: bool,
     },
+    Prune {},
 }
 
 #[derive(Debug, ValueEnum, Clone)]
@@ -128,6 +129,7 @@ async fn main() -> Result<(), sqlx::Error> {
             print_query_results(get_entries(priority, from, to, reversed, &pool).await?);
         }
         Commands::Delete { id } => delete_by_id(id, &pool).await?,
+        Commands::Prune {} => prune(&pool).await?,
     }
     Ok(())
 }
@@ -214,6 +216,14 @@ async fn get_entries(
 
 async fn delete_by_id(id: i64, pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
     let q = query!("DELETE FROM todos WHERE id = ?", id);
+
+    q.execute(pool).await?;
+
+    Ok(())
+}
+
+async fn prune(pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
+    let q = query!("DELETE FROM todos");
 
     q.execute(pool).await?;
 
