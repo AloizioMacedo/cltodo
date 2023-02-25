@@ -19,6 +19,10 @@ const DB_FILE: &str = "data.db";
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+
+    /// Uses the global todo list instead of project-specific ones.
+    #[arg(short, long, default_value_t = false)]
+    global: bool,
 }
 
 #[derive(Subcommand)]
@@ -166,7 +170,9 @@ impl Todo {
 async fn main() -> Result<(), sqlx::Error> {
     let args = Cli::parse();
 
-    let pool = get_connection().await?;
+    let global = args.global;
+
+    let pool = get_connection(global).await?;
 
     let query = sqlx::query!(
         "CREATE TABLE IF NOT EXISTS todos (
@@ -334,13 +340,13 @@ fn print_query_results(results: Vec<Todo>, extended: bool) {
     }
 }
 
-async fn get_connection() -> Result<Pool<Sqlite>, sqlx::Error> {
+async fn get_connection(global: bool) -> Result<Pool<Sqlite>, sqlx::Error> {
     let current_dir = std::env::current_dir().unwrap();
 
     let mut this_dir = read_dir(&current_dir).unwrap();
     let has_git = this_dir.any(|x| x.as_ref().unwrap().file_name() == ".git");
 
-    let cltodo_folder = if has_git {
+    let cltodo_folder = if has_git && !global {
         current_dir.join(DB_FOLDER)
     } else {
         home_dir().unwrap().join(DB_FOLDER)
