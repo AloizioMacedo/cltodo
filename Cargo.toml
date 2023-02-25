@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 chrono = "0.4.23"
 clap = { version = "4.1.6", features = [ "derive" ] }
+colored = "2.0.0"
 dotenvy = "0.15.6"
 sqlx = { version = "0.6", features = [ "runtime-tokio-native-tls" , "sqlite" ] }
 tokio = { version = "1", features = ["full"] }

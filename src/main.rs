@@ -4,6 +4,7 @@ use sqlx::{sqlite::SqlitePoolOptions, FromRow, Pool, QueryBuilder, Sqlite};
 use std::{path::PathBuf, str::FromStr, time};
 
 use clap::{Parser, Subcommand, ValueEnum};
+use colored::Colorize;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -53,6 +54,16 @@ impl Priority {
     }
 }
 
+impl ToString for Priority {
+    fn to_string(&self) -> String {
+        match self {
+            Priority::Normal => "NORMAL".to_string(),
+            Priority::Important => "IMPORTANT".to_string(),
+            Priority::Critical => "CRITICAL".to_string(),
+        }
+    }
+}
+
 #[derive(Debug, FromRow)]
 struct TodoEntry {
     id: i64,
@@ -61,7 +72,7 @@ struct TodoEntry {
     priority: i64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Todo {
     id: i64,
     date: DateTime<FixedOffset>,
@@ -114,12 +125,7 @@ async fn main() -> Result<(), sqlx::Error> {
             to,
             reversed,
         } => {
-            println!("{:?}", from);
-
-            println!(
-                "{:?}",
-                get_entries(priority, from, to, reversed, &pool).await?
-            )
+            print_query_results(get_entries(priority, from, to, reversed, &pool).await?);
         }
         _ => print!("Todo!"),
     }
@@ -149,7 +155,7 @@ async fn get_entries(
     to: Option<DateTime<FixedOffset>>,
     reversed: bool,
     pool: &Pool<Sqlite>,
-) -> Result<Vec<TodoEntry>, sqlx::Error> {
+) -> Result<Vec<Todo>, sqlx::Error> {
     let mut query = QueryBuilder::new("SELECT * from todos WHERE 1=1");
 
     if let Some(x) = priority {
@@ -186,6 +192,53 @@ async fn get_entries(
         .map(|x| TodoEntry::from_row(x).expect("Couldn't convert query result to TodoEntry"))
         .collect();
 
+    let hey: Vec<Todo> = hey.iter().map(|x| Todo::from_entry(x).unwrap()).collect();
+
+    let hey = hey
+        .iter()
+        .filter(|x| matches!(x.priority, Priority::Critical))
+        .chain(
+            hey.iter()
+                .filter(|x| matches!(x.priority, Priority::Important))
+                .chain(
+                    hey.iter()
+                        .filter(|x| matches!(x.priority, Priority::Normal)),
+                ),
+        )
+        .cloned()
+        .collect();
+
     Ok(hey)
     // Ok(Vec::new())
+}
+
+fn print_query_results(results: Vec<Todo>) {
+    for result in results {
+        match result.priority {
+            Priority::Critical => println!(
+                "{}{}: {}: {}: {}",
+                "#".red(),
+                result.id.to_string().red(),
+                result.priority.to_string().red(),
+                result.date.date_naive().to_string().red(),
+                result.text.red()
+            ),
+            Priority::Important => println!(
+                "{}{}: {}: {}: {}",
+                "#".yellow(),
+                result.id.to_string().yellow(),
+                result.priority.to_string().yellow(),
+                result.date.date_naive().to_string().yellow(),
+                result.text.yellow()
+            ),
+            Priority::Normal => println!(
+                "{}{}: {}: {}: {}",
+                "#",
+                result.id.to_string(),
+                result.priority.to_string(),
+                result.date.date_naive(),
+                result.text
+            ),
+        }
+    }
 }
