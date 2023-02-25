@@ -1,7 +1,12 @@
 [package]
 name = "easytd"
+authors = ["Aloizio Macedo"]
+description = "CLI Todo List."
 version = "0.1.0"
+license = "MIT"
 edition = "2021"
+categories = ["command-line-interface", "command-line-utilities"]
+exclude = ["target", "Cargo.lock"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
