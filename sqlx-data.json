@@ -1,0 +1,43 @@
+{
+  "db": "SQLite",
+  "14446baa10c444c2da7d35099fd1044650eda4cf428286994ae3743b61d531f3": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 0
+      }
+    },
+    "query": "DELETE FROM todos"
+  },
+  "92aeac2cb7b31c31dcc0662af68b78435a8717dac45d2e3ab4502f6aa2f8946a": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 3
+      }
+    },
+    "query": "INSERT INTO todos (date, text, priority) VALUES (?, ?, ?)"
+  },
+  "96fba7498125dda58a2598ef9a1b10bd20b7acbd1133dad6355e54525f5884a6": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "DELETE FROM todos WHERE id = ?"
+  },
+  "c2e683d857e4074cb0096840f6a5efd79e462c3f22edd3784f37d35febe02e89": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 0
+      }
+    },
+    "query": "CREATE TABLE IF NOT EXISTS todos (\n            id INTEGER PRIMARY KEY,\n            date TEXT NOT NULL,\n            text TEXT NOT NULL,\n            priority INTEGER NOT NULL\n        ) STRICT"
+  }
+}
