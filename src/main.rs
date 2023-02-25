@@ -234,7 +234,7 @@ fn print_query_results(results: Vec<Todo>) {
     for result in results {
         match result.priority {
             Priority::Critical => println!(
-                "{}{}: {}: {}: {}",
+                "{}{}: {:<9}: {}: {}",
                 "#".red(),
                 result.id.to_string().red(),
                 result.priority.to_string().red(),
@@ -242,7 +242,7 @@ fn print_query_results(results: Vec<Todo>) {
                 result.text.red()
             ),
             Priority::Important => println!(
-                "{}{}: {}: {}: {}",
+                "{}{}: {:<9}: {}: {}",
                 "#".yellow(),
                 result.id.to_string().yellow(),
                 result.priority.to_string().yellow(),
@@ -250,7 +250,7 @@ fn print_query_results(results: Vec<Todo>) {
                 result.text.yellow()
             ),
             Priority::Normal => println!(
-                "{}{}: {}: {}: {}",
+                "{}{}: {:<9}: {}: {}",
                 "#",
                 result.id.to_string(),
                 result.priority.to_string(),
