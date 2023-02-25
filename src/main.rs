@@ -74,27 +74,23 @@ enum Commands {
 
 fn to_datetime_from(s: &str) -> Result<DateTime<Local>, String> {
     if let Ok(x) = DateTime::from_str(s) {
-        return Ok(x);
+        Ok(x)
+    } else if let Ok(x) = NaiveDate::from_str(s) {
+        let date_with_hms = x.and_hms_opt(0, 0, 0).unwrap();
+        Ok(date_with_hms.and_local_timezone(Local).unwrap())
     } else {
-        if let Ok(x) = NaiveDate::from_str(s) {
-            let oi = x.and_hms_opt(0, 0, 0).unwrap();
-            Ok(oi.and_local_timezone(Local).unwrap())
-        } else {
-            Err("oh-oh".to_string())
-        }
+        Err("oh-oh".to_string())
     }
 }
 
 fn to_datetime_to(s: &str) -> Result<DateTime<Local>, String> {
     if let Ok(x) = DateTime::from_str(s) {
-        return Ok(x);
+        Ok(x)
+    } else if let Ok(date_with_hms) = NaiveDate::from_str(s) {
+        let oi = date_with_hms.and_hms_opt(11, 59, 59).unwrap();
+        Ok(oi.and_local_timezone(Local).unwrap())
     } else {
-        if let Ok(x) = NaiveDate::from_str(s) {
-            let oi = x.and_hms_opt(11, 59, 59).unwrap();
-            Ok(oi.and_local_timezone(Local).unwrap())
-        } else {
-            Err("oh-oh".to_string())
-        }
+        Err("oh-oh".to_string())
     }
 }
 
@@ -374,13 +370,12 @@ async fn get_connection(global: bool) -> Result<Pool<Sqlite>, sqlx::Error> {
         .create_new(true)
         .open(database_url);
 
-    match creation {
-        Ok(_) => println!("Database file created at {}", database_url),
-        _ => (),
+    if creation.is_ok() {
+        println!("Database file created at {}", database_url)
     }
 
-    Ok(SqlitePoolOptions::new()
+    SqlitePoolOptions::new()
         .max_connections(5)
         .connect(&format!("sqlite:///{}", database_url))
-        .await?)
+        .await
 }
