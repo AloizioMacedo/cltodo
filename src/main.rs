@@ -57,6 +57,10 @@ enum Commands {
         /// Reverses the order displayed on the query. The default is more recent entries on the top.
         #[arg(short, long, default_value_t = false)]
         reversed: bool,
+
+        /// Sticks to chronological order sort only, disregarding priority.
+        #[arg(short, long, default_value_t = false)]
+        chronological: bool,
     },
 
     /// Prunes all entries, also resetting ids.
@@ -182,9 +186,10 @@ async fn main() -> Result<(), sqlx::Error> {
             to,
             reversed,
             extended,
+            chronological,
         } => {
             print_query_results(
-                get_entries(priority, from, to, reversed, &pool).await?,
+                get_entries(priority, from, to, reversed, chronological, &pool).await?,
                 extended,
             );
         }
@@ -216,6 +221,7 @@ async fn get_entries(
     from: Option<DateTime<Local>>,
     to: Option<DateTime<Local>>,
     reversed: bool,
+    chronological: bool,
     pool: &Pool<Sqlite>,
 ) -> Result<Vec<Todo>, sqlx::Error> {
     let mut query = QueryBuilder::new("SELECT * from todos WHERE 1=1");
@@ -250,28 +256,30 @@ async fn get_entries(
         .map(|x| TodoEntry::from_row(x).expect("Couldn't convert query result to TodoEntry"))
         .collect();
 
-    let todos: Vec<Todo> = entries
+    let mut todos: Vec<Todo> = entries
         .iter()
         .map(|x| Todo::from_entry(x).unwrap())
         .collect();
 
-    let reordered_todos = todos
-        .iter()
-        .filter(|x| matches!(x.priority, Priority::Critical))
-        .chain(
-            todos
-                .iter()
-                .filter(|x| matches!(x.priority, Priority::Important))
-                .chain(
-                    todos
-                        .iter()
-                        .filter(|x| matches!(x.priority, Priority::Normal)),
-                ),
-        )
-        .cloned()
-        .collect();
+    if !chronological {
+        todos = todos
+            .iter()
+            .filter(|x| matches!(x.priority, Priority::Critical))
+            .chain(
+                todos
+                    .iter()
+                    .filter(|x| matches!(x.priority, Priority::Important))
+                    .chain(
+                        todos
+                            .iter()
+                            .filter(|x| matches!(x.priority, Priority::Normal)),
+                    ),
+            )
+            .cloned()
+            .collect();
+    }
 
-    Ok(reordered_todos)
+    Ok(todos)
 }
 
 async fn delete_by_id(id: i64, pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
