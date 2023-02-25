@@ -1,6 +1,7 @@
 use chrono::{DateTime, Local, NaiveDate, ParseError};
 use home::home_dir;
 use sqlx::{query, sqlite::SqlitePoolOptions, FromRow, Pool, QueryBuilder, Sqlite};
+use std::io::{self, Write};
 use std::{
     fs::{create_dir_all, read_dir, OpenOptions},
     str::FromStr,
@@ -310,32 +311,41 @@ fn print_query_results(results: Vec<Todo>, extended: bool) {
         return;
     }
 
+    let stdout = io::stdout();
+    let mut handle = io::BufWriter::new(stdout.lock());
+
     for result in results {
         match result.priority {
-            Priority::Critical => println!(
+            Priority::Critical => writeln!(
+                handle,
                 "{}{}: {:<9}: {}: {}",
                 "#".red(),
                 result.id.to_string().red(),
                 result.priority.to_string().red(),
                 result.date.get_style(extended).red(),
                 result.text.red()
-            ),
-            Priority::Important => println!(
+            )
+            .unwrap(),
+            Priority::Important => writeln!(
+                handle,
                 "{}{}: {:<9}: {}: {}",
                 "#".yellow(),
                 result.id.to_string().yellow(),
                 result.priority.to_string().yellow(),
                 result.date.get_style(extended).to_string().yellow(),
                 result.text.yellow()
-            ),
-            Priority::Normal => println!(
+            )
+            .unwrap(),
+            Priority::Normal => writeln!(
+                handle,
                 "{}{}: {:<9}: {}: {}",
                 "#",
                 result.id.to_string(),
                 result.priority.to_string(),
                 result.date.get_style(extended),
                 result.text
-            ),
+            )
+            .unwrap(),
         }
     }
 }
