@@ -1,9 +1,43 @@
 use chrono::{DateTime, FixedOffset, Local, ParseError};
 use dotenvy::dotenv;
 use sqlx::{sqlite::SqlitePoolOptions, FromRow, Pool, QueryBuilder, Sqlite};
-use std::{str::FromStr, time};
+use std::{path::PathBuf, str::FromStr, time};
 
-#[derive(Debug)]
+use clap::{Parser, Subcommand, ValueEnum};
+
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    Add {
+        #[arg(short, long)]
+        text: String,
+
+        #[arg(short, long)]
+        priority: Priority,
+    },
+    Remove {
+        #[arg(short, long)]
+        id: i64,
+    },
+
+    /// does testing things
+    Get {
+        /// lists test values
+        #[arg(short, long)]
+        priority: Option<Priority>,
+        from: Option<DateTime<FixedOffset>>,
+        to: Option<DateTime<FixedOffset>>,
+        reversed: Option<bool>,
+    },
+}
+
+#[derive(Debug, ValueEnum, Clone)]
 enum Priority {
     Normal = 0,
     Important = 1,
