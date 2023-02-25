@@ -6,6 +6,7 @@ use std::{str::FromStr, time};
 use clap::{Parser, Subcommand, ValueEnum};
 use colored::Colorize;
 
+/// CLI Todo.
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -15,31 +16,43 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Add TODO entry.
     Add {
+        /// Text describing the TODO task.
         text: String,
 
+        /// Priority of the TODO task.
         #[arg(short, long)]
         priority: Priority,
     },
-    Delete {
-        id: i64,
-    },
+
+    /// Delete TODO entry based on its id.
+    Delete { id: i64 },
+
+    /// Queries TODO entries based on the parameters.
     Get {
+        /// Filters by entries with the given priority.
         #[arg(short, long)]
         priority: Option<Priority>,
 
+        /// Filters by entries that are more recent than the given datetime. Inclusive.
         #[arg(short, long)]
         from: Option<DateTime<FixedOffset>>,
 
+        /// Filters by entries that are older than the given datetime. Exclusive.
         #[arg(short, long)]
         to: Option<DateTime<FixedOffset>>,
 
+        /// Displays datetimes in extended mode, i.e. with hours, mins, secs and time zone.
         #[arg(short, long, default_value_t = false)]
         extended: bool,
 
+        /// Reverses the order displayed on the query. The default is more recent entries on the top.
         #[arg(short, long, default_value_t = false)]
         reversed: bool,
     },
+
+    /// Prunes all entries, also resetting ids.
     Prune {},
 }
 
