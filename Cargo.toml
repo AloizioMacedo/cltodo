@@ -1,0 +1,16 @@
+[package]
+name = "easytd"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+chrono = "0.4.23"
+dotenvy = "0.15.6"
+sqlx = { version = "0.6", features = [ "runtime-tokio-native-tls" , "sqlite" ] }
+tokio = { version = "1", features = ["full"] }
+
+
+[profile.dev.package.sqlx-macros]
+opt-level = 3
