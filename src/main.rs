@@ -125,18 +125,15 @@ async fn main() -> Result<(), sqlx::Error> {
         .connect(&database_url)
         .await?;
 
-    // let query = sqlx::query!(
-    //     "CREATE TABLE IF NOT EXISTS todos (
-    //     id INTEGER PRIMARY KEY,
-    //     date TEXT NOT NULL,
-    //     text TEXT NOT NULL,
-    //     priority INTEGER NOT NULL
-    // ) STRICT"
-    // );
-
-    // query.execute(&pool).await?;
-
-    // post_todo("eita", &pool, Priority::Important).await?;
+    let query = sqlx::query!(
+        "CREATE TABLE IF NOT EXISTS todos (
+            id INTEGER PRIMARY KEY,
+            date TEXT NOT NULL,
+            text TEXT NOT NULL,
+            priority INTEGER NOT NULL
+        ) STRICT"
+    );
+    query.execute(&pool).await?;
 
     match args.command {
         Commands::Add { text, priority } => post_todo(&text, &pool, priority).await?,
