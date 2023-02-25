@@ -39,7 +39,7 @@ enum Commands {
         #[arg(short, long)]
         from: Option<DateTime<FixedOffset>>,
 
-        /// Filters by entries that are older than the given datetime. Exclusive.
+        /// Filters by entries that are older than the given datetime. Inclusive.
         #[arg(short, long)]
         to: Option<DateTime<FixedOffset>>,
 
@@ -208,7 +208,7 @@ async fn get_entries(
     }
 
     if let Some(x) = to {
-        query.push(" AND date < ");
+        query.push(" AND date <= ");
         query.push_bind(x.to_rfc3339());
     }
 
