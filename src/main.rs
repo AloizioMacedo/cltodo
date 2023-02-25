@@ -1,5 +1,4 @@
-use chrono::{DateTime, FixedOffset, Local, ParseError};
-use dotenvy::dotenv;
+use chrono::{DateTime, Local, NaiveDate, ParseError};
 use sqlx::{query, sqlite::SqlitePoolOptions, FromRow, Pool, QueryBuilder, Sqlite};
 use std::{str::FromStr, time};
 
@@ -36,12 +35,12 @@ enum Commands {
         priority: Option<Priority>,
 
         /// Filters by entries that are more recent than the given datetime. Inclusive.
-        #[arg(short, long)]
-        from: Option<DateTime<FixedOffset>>,
+        #[arg(short, long, value_parser = to_datetime_from)]
+        from: Option<DateTime<Local>>,
 
         /// Filters by entries that are older than the given datetime. Inclusive.
-        #[arg(short, long)]
-        to: Option<DateTime<FixedOffset>>,
+        #[arg(short, long, value_parser = to_datetime_to)]
+        to: Option<DateTime<Local>>,
 
         /// Displays datetimes in extended mode, i.e. with hours, mins, secs and time zone.
         #[arg(short, long, default_value_t = false)]
@@ -56,11 +55,37 @@ enum Commands {
     Prune {},
 }
 
+fn to_datetime_from(s: &str) -> Result<DateTime<Local>, String> {
+    if let Ok(x) = DateTime::from_str(s) {
+        return Ok(x);
+    } else {
+        if let Ok(x) = NaiveDate::from_str(s) {
+            let oi = x.and_hms_opt(0, 0, 0).unwrap();
+            Ok(oi.and_local_timezone(Local).unwrap())
+        } else {
+            Err("oh-oh".to_string())
+        }
+    }
+}
+
+fn to_datetime_to(s: &str) -> Result<DateTime<Local>, String> {
+    if let Ok(x) = DateTime::from_str(s) {
+        return Ok(x);
+    } else {
+        if let Ok(x) = NaiveDate::from_str(s) {
+            let oi = x.and_hms_opt(11, 59, 59).unwrap();
+            Ok(oi.and_local_timezone(Local).unwrap())
+        } else {
+            Err("oh-oh".to_string())
+        }
+    }
+}
+
 trait Extendable {
     fn get_style(&self, extended: bool) -> String;
 }
 
-impl Extendable for DateTime<FixedOffset> {
+impl Extendable for DateTime<Local> {
     fn get_style(&self, extended: bool) -> String {
         if extended {
             self.to_rfc3339_opts(chrono::SecondsFormat::Secs, false)
@@ -109,7 +134,7 @@ struct TodoEntry {
 #[derive(Debug, Clone)]
 struct Todo {
     id: i64,
-    date: DateTime<FixedOffset>,
+    date: DateTime<Local>,
     text: String,
     priority: Priority,
 }
@@ -187,8 +212,8 @@ async fn post_todo(text: &str, pool: &Pool<Sqlite>, priority: Priority) -> Resul
 
 async fn get_entries(
     priority: Option<Priority>,
-    from: Option<DateTime<FixedOffset>>,
-    to: Option<DateTime<FixedOffset>>,
+    from: Option<DateTime<Local>>,
+    to: Option<DateTime<Local>>,
     reversed: bool,
     pool: &Pool<Sqlite>,
 ) -> Result<Vec<Todo>, sqlx::Error> {
@@ -201,9 +226,6 @@ async fn get_entries(
 
     if let Some(x) = from {
         query.push(" AND date >= ");
-        println!("{:?}", x);
-        println!("{:?}", x.to_rfc3339());
-        println!("{:?}", x.to_string());
         query.push_bind(x.to_rfc3339());
     }
 
@@ -249,7 +271,6 @@ async fn get_entries(
         .collect();
 
     Ok(reordered_todos)
-    // Ok(Vec::new())
 }
 
 async fn delete_by_id(id: i64, pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
