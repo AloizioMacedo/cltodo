@@ -3,6 +3,7 @@ name = "cltodo"
 authors = ["Aloizio Macedo"]
 description = "CLI Todo List."
 repository = "https://github.com/AloizioMacedo/cltodo"
+readme = "README.md"
 version = "0.1.0"
 license = "MIT"
 edition = "2021"
