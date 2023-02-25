@@ -1,16 +1,32 @@
 use chrono::{DateTime, FixedOffset, Local, ParseError};
 use dotenvy::dotenv;
-use sqlx::{
-    query_as,
-    sqlite::{SqlitePoolOptions, SqliteQueryResult},
-    Pool, Sqlite,
-};
-use std::{env, str::FromStr, time};
+use sqlx::{sqlite::SqlitePoolOptions, FromRow, Pool, QueryBuilder, Sqlite};
+use std::{str::FromStr, time};
 
+#[derive(Debug)]
+enum Priority {
+    Normal = 0,
+    Important = 1,
+    Critical = 2,
+}
+
+impl Priority {
+    fn from_i64(i: i64) -> Result<Self, ()> {
+        match i {
+            0 => Ok(Priority::Normal),
+            1 => Ok(Priority::Important),
+            2 => Ok(Priority::Critical),
+            _ => Err(()),
+        }
+    }
+}
+
+#[derive(Debug, FromRow)]
 struct TodoEntry {
     id: i64,
     date: String,
     text: String,
+    priority: i64,
 }
 
 #[derive(Debug)]
@@ -18,6 +34,7 @@ struct Todo {
     id: i64,
     date: DateTime<FixedOffset>,
     text: String,
+    priority: Priority,
 }
 
 impl Todo {
@@ -26,6 +43,7 @@ impl Todo {
             id: entry.id,
             date: DateTime::from_str(&entry.date)?,
             text: entry.text.to_owned(),
+            priority: Priority::from_i64(entry.priority).expect("Expected integer from 0 to 2."),
         })
     }
 }
@@ -44,36 +62,74 @@ async fn main() -> Result<(), sqlx::Error> {
         "CREATE TABLE IF NOT EXISTS todos (
         id INTEGER PRIMARY KEY,
         date TEXT NOT NULL,
-        text TEXT NOT NULL
+        text TEXT NOT NULL,
+        priority INTEGER NOT NULL
     ) STRICT"
     );
 
     query.execute(&pool).await?;
 
-    post_todo("tenho que comprar uma tesoura", &pool).await?;
+    post_todo("eita", &pool, Priority::Important).await?;
 
-    let entry = query_as!(TodoEntry, "SELECT * FROM todos WHERE id = ?", 1)
-        .fetch_one(&pool)
-        .await?;
-
-    let entry = Todo::from_entry(&entry);
-
-    println!("{:?}", entry);
+    println!("{:?}", get_entries(None, None, None, false, &pool).await?);
 
     Ok(())
 }
 
-async fn post_todo(text: &str, pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
+async fn post_todo(text: &str, pool: &Pool<Sqlite>, priority: Priority) -> Result<(), sqlx::Error> {
     let now = time::SystemTime::now();
     let to_store = DateTime::<Local>::from(now).to_string();
+    let priority = priority as i64;
 
     let oi = sqlx::query!(
-        "INSERT INTO todos (date, text) VALUES (?, ?)",
+        "INSERT INTO todos (date, text, priority) VALUES (?, ?, ?)",
         to_store,
-        text
+        text,
+        priority
     );
 
     oi.execute(pool).await?;
 
     Ok(())
+}
+
+async fn get_entries(
+    priority_level: Option<Priority>,
+    from: Option<DateTime<FixedOffset>>,
+    to: Option<DateTime<FixedOffset>>,
+    reversed: bool,
+    pool: &Pool<Sqlite>,
+) -> Result<Vec<TodoEntry>, sqlx::Error> {
+    let mut query = QueryBuilder::new("SELECT * from todos WHERE 1=1");
+
+    if let Some(x) = priority_level {
+        query.push("AND priority = ");
+        query.push_bind(x as i64);
+    }
+
+    if let Some(x) = from {
+        query.push("AND from >= ");
+        query.push_bind(x.to_string());
+    }
+
+    if let Some(x) = to {
+        query.push("AND from < ");
+        query.push_bind(x.to_string());
+    }
+
+    if reversed {
+        query.push(" ORDER BY date ASC");
+    } else {
+        query.push(" ORDER BY date DESC");
+    }
+
+    let query = query.build();
+    let hey: Vec<TodoEntry> = query
+        .fetch_all(pool)
+        .await?
+        .iter()
+        .map(|x| TodoEntry::from_row(x).expect("Couldn't convert query result to TodoEntry"))
+        .collect();
+
+    Ok(hey)
 }
