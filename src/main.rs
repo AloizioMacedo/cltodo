@@ -76,7 +76,9 @@ fn to_datetime_from(s: &str) -> Result<DateTime<Local>, String> {
     if let Ok(x) = DateTime::from_str(s) {
         Ok(x)
     } else if let Ok(x) = NaiveDate::from_str(s) {
-        let date_with_hms = x.and_hms_opt(0, 0, 0).unwrap();
+        let date_with_hms = x
+            .and_hms_opt(0, 0, 0)
+            .expect("All zeroes should be valid inputs.");
         Ok(date_with_hms.and_local_timezone(Local).unwrap())
     } else {
         Err("oh-oh".to_string())
@@ -87,7 +89,9 @@ fn to_datetime_to(s: &str) -> Result<DateTime<Local>, String> {
     if let Ok(x) = DateTime::from_str(s) {
         Ok(x)
     } else if let Ok(date_with_hms) = NaiveDate::from_str(s) {
-        let oi = date_with_hms.and_hms_opt(11, 59, 59).unwrap();
+        let oi = date_with_hms
+            .and_hms_opt(11, 59, 59)
+            .expect("11, 59, 59 should be valid inputs.");
         Ok(oi.and_local_timezone(Local).unwrap())
     } else {
         Err("oh-oh".to_string())
@@ -256,12 +260,12 @@ async fn get_entries(
         .fetch_all(pool)
         .await?
         .iter()
-        .map(|x| TodoEntry::from_row(x).expect("Couldn't convert query result to TodoEntry"))
+        .map(|x| TodoEntry::from_row(x).expect("Database entries should always be convertible."))
         .collect();
 
     let mut todos: Vec<Todo> = entries
         .iter()
-        .map(|x| Todo::from_entry(x).unwrap())
+        .map(|x| Todo::from_entry(x).expect("TodoEntries should always be convert to Todo."))
         .collect();
 
     if !chronological {
@@ -321,7 +325,7 @@ fn print_query_results(results: Vec<Todo>, extended: bool) {
                 result.date.get_style(extended).red(),
                 result.text.red()
             )
-            .unwrap(),
+            .expect("There should be no problems writing to stdout."),
             Priority::Important => writeln!(
                 handle,
                 "{}{}: {:<9}: {}: {}",
@@ -331,7 +335,7 @@ fn print_query_results(results: Vec<Todo>, extended: bool) {
                 result.date.get_style(extended).to_string().yellow(),
                 result.text.yellow()
             )
-            .unwrap(),
+            .expect("There should be no problems writing to stdout."),
             Priority::Normal => writeln!(
                 handle,
                 "{}{}: {:<9}: {}: {}",
@@ -341,27 +345,43 @@ fn print_query_results(results: Vec<Todo>, extended: bool) {
                 result.date.get_style(extended),
                 result.text
             )
-            .unwrap(),
+            .expect("There should be no problems writing to stdout."),
         }
     }
 }
 
 async fn get_connection(global: bool) -> Result<Pool<Sqlite>, sqlx::Error> {
-    let current_dir = std::env::current_dir().unwrap();
+    let current_dir = std::env::current_dir().expect("Current directory should be obtainable.");
 
-    let mut this_dir = read_dir(&current_dir).unwrap();
-    let has_git = this_dir.any(|x| x.as_ref().unwrap().file_name() == ".git");
+    let mut this_dir =
+        read_dir(&current_dir).expect("Reading from current directory should be possible.");
+    let has_git = this_dir.any(|x| {
+        x.as_ref()
+            .expect("File from current directory should be inspectable.")
+            .file_name()
+            == ".git"
+    });
 
     let cltodo_folder = if has_git && !global {
         current_dir.join(DB_FOLDER)
     } else {
-        home_dir().unwrap().join(DB_FOLDER)
+        home_dir()
+            .expect("Home directory should be accessible.")
+            .join(DB_FOLDER)
     };
 
-    create_dir_all(&cltodo_folder).unwrap();
+    create_dir_all(&cltodo_folder).unwrap_or_else(|_| {
+        panic!(
+            "It should be possible to create the {} directory",
+            DB_FOLDER
+        )
+    });
 
     let data_file = cltodo_folder.join(DB_FILE);
-    let database_url = data_file.to_str().unwrap().to_owned();
+    let database_url = data_file
+        .to_str()
+        .expect("Data file path should be convertible to string.")
+        .to_owned();
 
     let database_url = database_url.trim_start_matches("\\\\?\\");
 
