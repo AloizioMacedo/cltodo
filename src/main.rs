@@ -27,14 +27,34 @@ enum Commands {
     Get {
         #[arg(short, long)]
         priority: Option<Priority>,
+
         #[arg(short, long)]
         from: Option<DateTime<FixedOffset>>,
+
         #[arg(short, long)]
         to: Option<DateTime<FixedOffset>>,
+
+        #[arg(short, long, default_value_t = false)]
+        extended: bool,
+
         #[arg(short, long, default_value_t = false)]
         reversed: bool,
     },
     Prune {},
+}
+
+trait Extendable {
+    fn get_style(&self, extended: bool) -> String;
+}
+
+impl Extendable for DateTime<FixedOffset> {
+    fn get_style(&self, extended: bool) -> String {
+        if extended {
+            self.to_rfc3339_opts(chrono::SecondsFormat::Secs, false)
+        } else {
+            self.date_naive().to_string()
+        }
+    }
 }
 
 #[derive(Debug, ValueEnum, Clone)]
@@ -125,8 +145,12 @@ async fn main() -> Result<(), sqlx::Error> {
             from,
             to,
             reversed,
+            extended,
         } => {
-            print_query_results(get_entries(priority, from, to, reversed, &pool).await?);
+            print_query_results(
+                get_entries(priority, from, to, reversed, &pool).await?,
+                extended,
+            );
         }
         Commands::Delete { id } => delete_by_id(id, &pool).await?,
         Commands::Prune {} => prune(&pool).await?,
@@ -230,7 +254,7 @@ async fn prune(pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
-fn print_query_results(results: Vec<Todo>) {
+fn print_query_results(results: Vec<Todo>, extended: bool) {
     for result in results {
         match result.priority {
             Priority::Critical => println!(
@@ -238,7 +262,7 @@ fn print_query_results(results: Vec<Todo>) {
                 "#".red(),
                 result.id.to_string().red(),
                 result.priority.to_string().red(),
-                result.date.date_naive().to_string().red(),
+                result.date.get_style(extended).red(),
                 result.text.red()
             ),
             Priority::Important => println!(
@@ -246,7 +270,7 @@ fn print_query_results(results: Vec<Todo>) {
                 "#".yellow(),
                 result.id.to_string().yellow(),
                 result.priority.to_string().yellow(),
-                result.date.date_naive().to_string().yellow(),
+                result.date.get_style(extended).to_string().yellow(),
                 result.text.yellow()
             ),
             Priority::Normal => println!(
@@ -254,7 +278,7 @@ fn print_query_results(results: Vec<Todo>) {
                 "#",
                 result.id.to_string(),
                 result.priority.to_string(),
-                result.date.date_naive(),
+                result.date.get_style(extended),
                 result.text
             ),
         }
