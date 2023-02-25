@@ -1,5 +1,5 @@
 [package]
-name = "easytd"
+name = "cltodo"
 authors = ["Aloizio Macedo"]
 description = "CLI Todo List."
 version = "0.1.0"
