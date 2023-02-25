@@ -205,33 +205,37 @@ async fn get_entries(
         query.push(" ORDER BY date DESC");
     }
 
-    // println!("{:?}", query.into_sql());
     let query = query.build();
 
-    let hey: Vec<TodoEntry> = query
+    let entries: Vec<TodoEntry> = query
         .fetch_all(pool)
         .await?
         .iter()
         .map(|x| TodoEntry::from_row(x).expect("Couldn't convert query result to TodoEntry"))
         .collect();
 
-    let hey: Vec<Todo> = hey.iter().map(|x| Todo::from_entry(x).unwrap()).collect();
+    let todos: Vec<Todo> = entries
+        .iter()
+        .map(|x| Todo::from_entry(x).unwrap())
+        .collect();
 
-    let hey = hey
+    let reordered_todos = todos
         .iter()
         .filter(|x| matches!(x.priority, Priority::Critical))
         .chain(
-            hey.iter()
+            todos
+                .iter()
                 .filter(|x| matches!(x.priority, Priority::Important))
                 .chain(
-                    hey.iter()
+                    todos
+                        .iter()
                         .filter(|x| matches!(x.priority, Priority::Normal)),
                 ),
         )
         .cloned()
         .collect();
 
-    Ok(hey)
+    Ok(reordered_todos)
     // Ok(Vec::new())
 }
 
