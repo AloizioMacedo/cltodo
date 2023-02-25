@@ -1,6 +1,6 @@
 use chrono::{DateTime, Local, NaiveDate, ParseError};
 use sqlx::{query, sqlite::SqlitePoolOptions, FromRow, Pool, QueryBuilder, Sqlite};
-use std::{str::FromStr, time};
+use std::{fs::OpenOptions, str::FromStr, time};
 
 use clap::{Parser, Subcommand, ValueEnum};
 use colored::Colorize;
@@ -152,15 +152,29 @@ impl Todo {
 
 #[tokio::main]
 async fn main() -> Result<(), sqlx::Error> {
-    dotenv().expect(".env file not found");
+    let current_exe = std::env::current_exe().unwrap();
+    let exe_parent = current_exe.parent().unwrap();
+    let db_file = exe_parent.join("data.db");
 
-    let database_url = dotenvy::var("DATABASE_URL").unwrap();
+    let database_url = db_file.to_str().unwrap();
+    let database_url = database_url.trim_start_matches("\\\\?\\");
+
+    println!("{}", database_url);
+    let creation = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(database_url);
+
+    match creation {
+        Ok(_) => println!("Database file created at {}", database_url),
+        _ => (),
+    }
 
     let args = Cli::parse();
 
     let pool = SqlitePoolOptions::new()
         .max_connections(5)
-        .connect(&database_url)
+        .connect(&format!("sqlite:///{}", database_url))
         .await?;
 
     let query = sqlx::query!(
