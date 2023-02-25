@@ -1,6 +1,10 @@
 use chrono::{DateTime, Local, NaiveDate, ParseError};
 use sqlx::{query, sqlite::SqlitePoolOptions, FromRow, Pool, QueryBuilder, Sqlite};
-use std::{fs::OpenOptions, str::FromStr, time};
+use std::{
+    fs::{read_dir, OpenOptions},
+    str::FromStr,
+    time,
+};
 
 use clap::{Parser, Subcommand, ValueEnum};
 use colored::Colorize;
@@ -152,30 +156,9 @@ impl Todo {
 
 #[tokio::main]
 async fn main() -> Result<(), sqlx::Error> {
-    let current_exe = std::env::current_exe().unwrap();
-    let exe_parent = current_exe.parent().unwrap();
-    let db_file = exe_parent.join("data.db");
-
-    let database_url = db_file.to_str().unwrap();
-    let database_url = database_url.trim_start_matches("\\\\?\\");
-
-    println!("{}", database_url);
-    let creation = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(database_url);
-
-    match creation {
-        Ok(_) => println!("Database file created at {}", database_url),
-        _ => (),
-    }
-
     let args = Cli::parse();
 
-    let pool = SqlitePoolOptions::new()
-        .max_connections(5)
-        .connect(&format!("sqlite:///{}", database_url))
-        .await?;
+    let pool = get_connection().await?;
 
     let query = sqlx::query!(
         "CREATE TABLE IF NOT EXISTS todos (
@@ -337,4 +320,35 @@ fn print_query_results(results: Vec<Todo>, extended: bool) {
             ),
         }
     }
+}
+
+async fn get_connection() -> Result<Pool<Sqlite>, sqlx::Error> {
+    let current_dir = std::env::current_dir().unwrap();
+
+    let mut this_dir = read_dir(&current_dir).unwrap();
+    let has_git = this_dir.any(|x| x.as_ref().unwrap().file_name() == ".git");
+
+    let database_url = if has_git {
+        let data_file = current_dir.join(".cltodo/data.db");
+        data_file.to_str().unwrap().to_owned()
+    } else {
+        "~/.cltodo/data.db".to_owned()
+    };
+
+    let database_url = database_url.trim_start_matches("\\\\?\\");
+
+    let creation = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(database_url);
+
+    match creation {
+        Ok(_) => println!("Database file created at {}", database_url),
+        _ => (),
+    }
+
+    Ok(SqlitePoolOptions::new()
+        .max_connections(5)
+        .connect(&format!("sqlite:///{}", database_url))
+        .await?)
 }
