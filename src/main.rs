@@ -9,31 +9,29 @@ use clap::{Parser, Subcommand, ValueEnum};
 #[command(author, version, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
-    command: Option<Commands>,
+    command: Commands,
 }
 
 #[derive(Subcommand)]
 enum Commands {
     Add {
-        #[arg(short, long)]
         text: String,
 
         #[arg(short, long)]
         priority: Priority,
     },
     Remove {
-        #[arg(short, long)]
         id: i64,
     },
-
-    /// does testing things
     Get {
-        /// lists test values
         #[arg(short, long)]
         priority: Option<Priority>,
+        #[arg(short, long)]
         from: Option<DateTime<FixedOffset>>,
+        #[arg(short, long)]
         to: Option<DateTime<FixedOffset>>,
-        reversed: Option<bool>,
+        #[arg(short, long, default_value_t = false)]
+        reversed: bool,
     },
 }
 
@@ -87,26 +85,44 @@ async fn main() -> Result<(), sqlx::Error> {
     dotenv().expect(".env file not found");
 
     let database_url = dotenvy::var("DATABASE_URL").unwrap();
+
+    let args = Cli::parse();
+
     let pool = SqlitePoolOptions::new()
         .max_connections(5)
         .connect(&database_url)
         .await?;
 
-    let query = sqlx::query!(
-        "CREATE TABLE IF NOT EXISTS todos (
-        id INTEGER PRIMARY KEY,
-        date TEXT NOT NULL,
-        text TEXT NOT NULL,
-        priority INTEGER NOT NULL
-    ) STRICT"
-    );
+    // let query = sqlx::query!(
+    //     "CREATE TABLE IF NOT EXISTS todos (
+    //     id INTEGER PRIMARY KEY,
+    //     date TEXT NOT NULL,
+    //     text TEXT NOT NULL,
+    //     priority INTEGER NOT NULL
+    // ) STRICT"
+    // );
 
-    query.execute(&pool).await?;
+    // query.execute(&pool).await?;
 
-    post_todo("eita", &pool, Priority::Important).await?;
+    // post_todo("eita", &pool, Priority::Important).await?;
 
-    println!("{:?}", get_entries(None, None, None, false, &pool).await?);
+    match args.command {
+        Commands::Add { text, priority } => post_todo(&text, &pool, priority).await?,
+        Commands::Get {
+            priority,
+            from,
+            to,
+            reversed,
+        } => {
+            println!("{:?}", from);
 
+            println!(
+                "{:?}",
+                get_entries(priority, from, to, reversed, &pool).await?
+            )
+        }
+        _ => print!("Todo!"),
+    }
     Ok(())
 }
 
@@ -128,7 +144,7 @@ async fn post_todo(text: &str, pool: &Pool<Sqlite>, priority: Priority) -> Resul
 }
 
 async fn get_entries(
-    priority_level: Option<Priority>,
+    priority: Option<Priority>,
     from: Option<DateTime<FixedOffset>>,
     to: Option<DateTime<FixedOffset>>,
     reversed: bool,
@@ -136,19 +152,22 @@ async fn get_entries(
 ) -> Result<Vec<TodoEntry>, sqlx::Error> {
     let mut query = QueryBuilder::new("SELECT * from todos WHERE 1=1");
 
-    if let Some(x) = priority_level {
-        query.push("AND priority = ");
+    if let Some(x) = priority {
+        query.push(" AND priority = ");
         query.push_bind(x as i64);
     }
 
     if let Some(x) = from {
-        query.push("AND from >= ");
-        query.push_bind(x.to_string());
+        query.push(" AND date >= ");
+        println!("{:?}", x);
+        println!("{:?}", x.to_rfc3339());
+        println!("{:?}", x.to_string());
+        query.push_bind(x.to_rfc3339());
     }
 
     if let Some(x) = to {
-        query.push("AND from < ");
-        query.push_bind(x.to_string());
+        query.push(" AND date < ");
+        query.push_bind(x.to_rfc3339());
     }
 
     if reversed {
@@ -157,7 +176,9 @@ async fn get_entries(
         query.push(" ORDER BY date DESC");
     }
 
+    // println!("{:?}", query.into_sql());
     let query = query.build();
+
     let hey: Vec<TodoEntry> = query
         .fetch_all(pool)
         .await?
@@ -166,4 +187,5 @@ async fn get_entries(
         .collect();
 
     Ok(hey)
+    // Ok(Vec::new())
 }
