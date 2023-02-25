@@ -1,13 +1,17 @@
 use chrono::{DateTime, Local, NaiveDate, ParseError};
+use home::home_dir;
 use sqlx::{query, sqlite::SqlitePoolOptions, FromRow, Pool, QueryBuilder, Sqlite};
 use std::{
-    fs::{read_dir, OpenOptions},
+    fs::{create_dir_all, read_dir, OpenOptions},
     str::FromStr,
     time,
 };
 
 use clap::{Parser, Subcommand, ValueEnum};
 use colored::Colorize;
+
+const DB_FOLDER: &str = ".cltodo";
+const DB_FILE: &str = "data.db";
 
 /// CLI Todo.
 #[derive(Parser)]
@@ -328,12 +332,16 @@ async fn get_connection() -> Result<Pool<Sqlite>, sqlx::Error> {
     let mut this_dir = read_dir(&current_dir).unwrap();
     let has_git = this_dir.any(|x| x.as_ref().unwrap().file_name() == ".git");
 
-    let database_url = if has_git {
-        let data_file = current_dir.join(".cltodo/data.db");
-        data_file.to_str().unwrap().to_owned()
+    let cltodo_folder = if has_git {
+        current_dir.join(DB_FOLDER)
     } else {
-        "~/.cltodo/data.db".to_owned()
+        home_dir().unwrap().join(DB_FOLDER)
     };
+
+    create_dir_all(&cltodo_folder).unwrap();
+
+    let data_file = cltodo_folder.join(DB_FILE);
+    let database_url = data_file.to_str().unwrap().to_owned();
 
     let database_url = database_url.trim_start_matches("\\\\?\\");
 
