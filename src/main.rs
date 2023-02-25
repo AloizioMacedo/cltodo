@@ -1,7 +1,7 @@
 use chrono::{DateTime, FixedOffset, Local, ParseError};
 use dotenvy::dotenv;
-use sqlx::{sqlite::SqlitePoolOptions, FromRow, Pool, QueryBuilder, Sqlite};
-use std::{path::PathBuf, str::FromStr, time};
+use sqlx::{query, sqlite::SqlitePoolOptions, FromRow, Pool, QueryBuilder, Sqlite};
+use std::{str::FromStr, time};
 
 use clap::{Parser, Subcommand, ValueEnum};
 use colored::Colorize;
@@ -21,7 +21,7 @@ enum Commands {
         #[arg(short, long)]
         priority: Priority,
     },
-    Remove {
+    Delete {
         id: i64,
     },
     Get {
@@ -127,7 +127,7 @@ async fn main() -> Result<(), sqlx::Error> {
         } => {
             print_query_results(get_entries(priority, from, to, reversed, &pool).await?);
         }
-        _ => print!("Todo!"),
+        Commands::Delete { id } => delete_by_id(id, &pool).await?,
     }
     Ok(())
 }
@@ -210,6 +210,14 @@ async fn get_entries(
 
     Ok(hey)
     // Ok(Vec::new())
+}
+
+async fn delete_by_id(id: i64, pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
+    let q = query!("DELETE FROM todos WHERE id = ?", id);
+
+    q.execute(pool).await?;
+
+    Ok(())
 }
 
 fn print_query_results(results: Vec<Todo>) {
