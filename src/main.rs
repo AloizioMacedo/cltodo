@@ -290,6 +290,11 @@ async fn prune(pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
 }
 
 fn print_query_results(results: Vec<Todo>, extended: bool) {
+    if results.is_empty() {
+        println!("No results found.");
+        return;
+    }
+
     for result in results {
         match result.priority {
             Priority::Critical => println!(
