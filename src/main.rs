@@ -81,7 +81,7 @@ fn to_datetime_from(s: &str) -> Result<DateTime<Local>, String> {
             .expect("All zeroes should be valid inputs.");
         Ok(date_with_hms.and_local_timezone(Local).unwrap())
     } else {
-        Err("oh-oh".to_string())
+        Err("Invalid input for date/datetime.".to_string())
     }
 }
 
@@ -94,7 +94,7 @@ fn to_datetime_to(s: &str) -> Result<DateTime<Local>, String> {
             .expect("11, 59, 59 should be valid inputs.");
         Ok(oi.and_local_timezone(Local).unwrap())
     } else {
-        Err("oh-oh".to_string())
+        Err("Invalida input for date/datetime.".to_string())
     }
 }
 
