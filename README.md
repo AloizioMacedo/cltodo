@@ -12,6 +12,12 @@ cargo install cltodo
 
 to install it directly from crates.io.
 
+If you are on linux, you can install it by downloading the package on releases and running
+
+```console
+sudo dpkg -i cltodo_0.1.1-1_amd64.deb
+```
+
 # Quick start
 
 Each entry on the list has three possible priorities: "normal", "important" or "critical".
