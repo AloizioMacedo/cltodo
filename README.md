@@ -61,3 +61,5 @@ Options:
   -c, --chronological        Sticks to chronological order sort only, disregarding priority
   -h, --help                 Print help
 ```
+
+If you are in a folder that is the root of a git project, it will manage a todo list for that particular project. You can refer to the global todo list by passing "-g" as an option instead.
