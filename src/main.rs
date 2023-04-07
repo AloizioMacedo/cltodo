@@ -14,6 +14,45 @@ use colored::Colorize;
 const DB_FOLDER: &str = ".cltodo";
 const DB_FILE: &str = "data.db";
 
+#[tokio::main]
+async fn main() -> Result<(), sqlx::Error> {
+    let args = Cli::parse();
+
+    let global = args.global;
+
+    let pool = get_connection(global).await?;
+
+    let query = sqlx::query!(
+        "CREATE TABLE IF NOT EXISTS todos (
+            id INTEGER PRIMARY KEY,
+            date TEXT NOT NULL,
+            text TEXT NOT NULL,
+            priority INTEGER NOT NULL
+        ) STRICT"
+    );
+    query.execute(&pool).await?;
+
+    match args.command {
+        Commands::Add { text, priority } => post_todo(&text, &pool, priority).await?,
+        Commands::Get {
+            priority,
+            from,
+            to,
+            reversed,
+            extended,
+            chronological,
+        } => {
+            print_query_results(
+                get_entries(priority, from, to, reversed, chronological, &pool).await?,
+                extended,
+            );
+        }
+        Commands::Delete { id } => delete_by_id(id, &pool).await?,
+        Commands::Prune {} => prune(&pool).await?,
+    }
+    Ok(())
+}
+
 /// CLI Todo.
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -176,45 +215,6 @@ impl Todo {
             priority: Priority::from_i64(entry.priority).expect("Expected integer from 0 to 2."),
         })
     }
-}
-
-#[tokio::main]
-async fn main() -> Result<(), sqlx::Error> {
-    let args = Cli::parse();
-
-    let global = args.global;
-
-    let pool = get_connection(global).await?;
-
-    let query = sqlx::query!(
-        "CREATE TABLE IF NOT EXISTS todos (
-            id INTEGER PRIMARY KEY,
-            date TEXT NOT NULL,
-            text TEXT NOT NULL,
-            priority INTEGER NOT NULL
-        ) STRICT"
-    );
-    query.execute(&pool).await?;
-
-    match args.command {
-        Commands::Add { text, priority } => post_todo(&text, &pool, priority).await?,
-        Commands::Get {
-            priority,
-            from,
-            to,
-            reversed,
-            extended,
-            chronological,
-        } => {
-            print_query_results(
-                get_entries(priority, from, to, reversed, chronological, &pool).await?,
-                extended,
-            );
-        }
-        Commands::Delete { id } => delete_by_id(id, &pool).await?,
-        Commands::Prune {} => prune(&pool).await?,
-    }
-    Ok(())
 }
 
 /// Posts new TODO into database.
