@@ -72,6 +72,9 @@ enum Commands {
     Prune {},
 }
 
+/// Transforms string to datetime.
+///
+/// If string is in date format, then sets hours, mins and secs to 0.
 fn to_datetime_from(s: &str) -> Result<DateTime<Local>, String> {
     if let Ok(x) = DateTime::from_str(s) {
         Ok(x)
@@ -85,6 +88,9 @@ fn to_datetime_from(s: &str) -> Result<DateTime<Local>, String> {
     }
 }
 
+/// Transforms string to datetime.
+///
+/// If string is in date format, then sets hours, min and secs to 11, 59 and 59 respectively.
 fn to_datetime_to(s: &str) -> Result<DateTime<Local>, String> {
     if let Ok(x) = DateTime::from_str(s) {
         Ok(x)
@@ -103,6 +109,10 @@ trait Extendable {
 }
 
 impl Extendable for DateTime<Local> {
+    /// Prints extended or non-extended mode.
+    ///
+    /// Extended mode consists of entire ISO timestamp, whereas non-extended
+    /// consists of only the date (i.e., YYYY-MM-DD).
     fn get_style(&self, extended: bool) -> String {
         if extended {
             self.to_rfc3339_opts(chrono::SecondsFormat::Secs, false)
@@ -157,6 +167,7 @@ struct Todo {
 }
 
 impl Todo {
+    /// Transforms TodoEntry into Todo.
     fn from_entry(entry: &TodoEntry) -> Result<Self, ParseError> {
         Ok(Todo {
             id: entry.id,
@@ -206,6 +217,7 @@ async fn main() -> Result<(), sqlx::Error> {
     Ok(())
 }
 
+/// Posts new TODO into database.
 async fn post_todo(text: &str, pool: &Pool<Sqlite>, priority: Priority) -> Result<(), sqlx::Error> {
     let now = time::SystemTime::now();
     let to_store = DateTime::<Local>::from(now).to_string();
@@ -223,6 +235,7 @@ async fn post_todo(text: &str, pool: &Pool<Sqlite>, priority: Priority) -> Resul
     Ok(())
 }
 
+/// Gets entries from TODO list according to parameters selected.
 async fn get_entries(
     priority: Option<Priority>,
     from: Option<DateTime<Local>>,
@@ -289,6 +302,7 @@ async fn get_entries(
     Ok(todos)
 }
 
+/// Deletes a database row via its id.
 async fn delete_by_id(id: i64, pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
     let q = query!("DELETE FROM todos WHERE id = ?", id);
 
@@ -297,6 +311,7 @@ async fn delete_by_id(id: i64, pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
+/// Deletes all entries of database, also resetting the ids.
 async fn prune(pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
     let q = query!("DELETE FROM todos");
 
@@ -305,6 +320,7 @@ async fn prune(pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
+/// Prints results from queries with specific stylings.
 fn print_query_results(results: Vec<Todo>, extended: bool) {
     if results.is_empty() {
         println!("No results found.");
@@ -350,6 +366,7 @@ fn print_query_results(results: Vec<Todo>, extended: bool) {
     }
 }
 
+/// Returns a pool of connections to the sqlite database.
 async fn get_connection(global: bool) -> Result<Pool<Sqlite>, sqlx::Error> {
     let current_dir = std::env::current_dir().expect("Current directory should be obtainable.");
 
