@@ -2,8 +2,10 @@ use chrono::{DateTime, Local, NaiveDate, ParseError};
 use home::home_dir;
 use sqlx::{query, sqlite::SqlitePoolOptions, FromRow, Pool, QueryBuilder, Sqlite};
 use std::io::{self, Write};
+use std::path::PathBuf;
 use std::{
-    fs::{create_dir_all, read_dir, OpenOptions},
+    fs::{create_dir_all, OpenOptions},
+    process::Command,
     str::FromStr,
     time,
 };
@@ -368,24 +370,27 @@ fn print_query_results(results: Vec<Todo>, extended: bool) {
 
 /// Returns a pool of connections to the sqlite database.
 async fn get_connection(global: bool) -> Result<Pool<Sqlite>, sqlx::Error> {
-    let current_dir = std::env::current_dir().expect("Current directory should be obtainable.");
-
-    let mut this_dir =
-        read_dir(&current_dir).expect("Reading from current directory should be possible.");
-    let has_git = this_dir.any(|x| {
-        x.as_ref()
-            .expect("File from current directory should be inspectable.")
-            .file_name()
-            == ".git"
-    });
-
-    let cltodo_folder = if has_git && !global {
-        current_dir.join(DB_FOLDER)
+    let cltodo_folder = if global {
+        home_dir()
+            .expect("Home directory should be accessible.")
+            .join(DB_FOLDER)
+    } else if let Ok(output) = Command::new("git")
+        .arg("rev-parse")
+        .arg("--show-toplevel")
+        .output()
+    {
+        PathBuf::from(
+            std::str::from_utf8(&output.stdout)
+                .expect("Should have utf8 output.")
+                .trim(),
+        )
+        .join(DB_FOLDER)
     } else {
         home_dir()
             .expect("Home directory should be accessible.")
             .join(DB_FOLDER)
     };
+    println!("{:?}", cltodo_folder);
 
     create_dir_all(&cltodo_folder).unwrap_or_else(|_| {
         panic!(
